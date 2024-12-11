@@ -1,0 +1,141 @@
+services:
+  app-migrate: &anchor
+    build: .
+
+    entrypoint: ["python", "./manage.py", "migrate"]
+
+    environment:
+      DB_PASSWORD: &db_password ${DB_PASSWORD:?DB_PASSWORD not provided}
+      DB_USERNAME: &db_username ${DB_USERNAME:?DB_USERNAME not provided}
+      DB_NAME: &db_name ${DB_NAME:?DB_NAME not provided}
+      DB_HOST: ${DB_HOST:?DB_HOST not provided}
+      DEBUG: ${DJANGO_DEBUG:-0}
+    
+    networks:
+      - chat-network
+
+    depends_on:
+      db:
+        condition: service_healthy
+  
+
+  redis:
+    image: redis:alpine
+    container_name: chat-redis
+    networks:
+      - chat-network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+
+  app-createsuperuser:
+    <<: *anchor
+    environment:
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD?:DJANGO_SUPERUSER_PASSWORD not provided}
+
+    entrypoint:
+      [
+        "python",
+        "./manage.py",
+        "createsuperuser",
+        "--noinput",
+        "--username",
+        "${DJANGO_SUPERUSER_NAME?:DJANGO_SUPERUSER_NAME not provided}",
+        "--email",
+        "${DJANGO_SUPERUSER_EMAIL?:DJANGO_SUPERUSER_EMAIL not provided}",
+      ]
+
+    depends_on:
+      app-migrate:
+        condition: service_completed_successfully
+
+
+  app-service:
+    <<: *anchor
+
+    networks:
+      - chat-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-I", "localhost:8000"]
+      interval: 5s
+      timeout: 5s
+      retries: 50
+      start_period: 2s
+
+    entrypoint: ["python", "./manage.py", "runserver", "0.0.0.0:8000"]
+
+    deploy:
+      mode: replicated
+      replicas: 1
+
+    labels:
+      - "traefik.http.routers.appservice.rule=Host(pwir.localhost)"
+
+    environment:
+      REDIS_URL: redis://redis:6379/0
+
+    # volumes:
+    #   - .:/app
+    #   - static_volume:/app/staticfiles
+    #   - media_volume:/app/mediafiles
+
+    depends_on:
+      redis:
+        condition: service_healthy
+      app-migrate:
+        condition: service_completed_successfully
+
+
+  reverse-proxy:
+    image: traefik:v3.1
+    networks:
+      - chat-network
+
+    command: --api.insecure=true --providers.docker
+
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+
+  db:
+    image: postgres
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    environment:
+      POSTGRES_PASSWORD: *db_password
+      POSTGRES_USER: *db_username
+      POSTGRES_DB: *db_name
+    
+    networks:
+      - chat-network
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", *db_name]
+      interval: 30s
+      timeout: 60s
+      retries: 5
+      start_period: 80s
+
+
+volumes:
+  postgres_data:
+  redis_data:
+  static_volume:
+  media_volume:
+
+
+networks:
+  chat-network:
+    driver: bridge
