@@ -8,12 +8,11 @@ from chat.routing import websocket_urlpatterns
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chatsite.settings")
 django_asgi_app = get_asgi_application()
 
+print("DJANGO_SETTINGS_MODULE:", os.getenv("DJANGO_SETTINGS_MODULE"))
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
-        "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(URLRouter(websocket_urlpatterns))
-        ),
+        "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
     }
 )
