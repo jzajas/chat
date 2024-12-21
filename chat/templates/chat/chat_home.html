@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Chat Rooms{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    {% if user.is_authenticated %}
+        <div class="row">
+            <!-- Available Rooms -->
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Available Chat Rooms</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group">
+                            <a href="{% url 'chat:chat_room' room_name='general' %}" class="list-group-item list-group-item-action">
+                                <h5 class="mb-1">General Chat</h5>
+                                <small class="text-muted">Public room for general discussions</small>
+                            </a>
+                            <a href="{% url 'chat:chat_room' room_name='tech' %}" class="list-group-item list-group-item-action">
+                                <h5 class="mb-1">Tech Talk</h5>
+                                <small class="text-muted">Discuss technology and programming</small>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Create New Room -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h4>Create New Room</h4>
+                    </div>
+                    <div class="card-body">
+                        <form id="roomForm" class="d-flex">
+                            <input type="text" id="roomName" class="form-control me-2" placeholder="Enter room name">
+                            <button type="submit" class="btn btn-primary">Create & Join</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Online Users -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Online Users</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="onlineUsers" class="list-group">
+                            <!-- Online users will be populated via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="row justify-content-center">
+            <div class="col-md-6 text-center">
+                <h2>Welcome to the Chat App</h2>
+                <p class="lead">Please login or register to start chatting</p>
+                <div class="mt-4">
+                    <a href="{% url 'chat:login' %}" class="btn btn-primary me-2">Login</a>
+                    <a href="{% url 'chat:register' %}" class="btn btn-outline-primary">Register</a>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+{% block extra_js %}
+<script>
+document.getElementById('roomForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const roomName = document.getElementById('roomName').value.trim().toLowerCase();
+    if (roomName) {
+        window.location.href = `/room/${roomName}/`;
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

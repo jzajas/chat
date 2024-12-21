@@ -63,7 +63,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'chatsite.wsgi.application'
 ASGI_APPLICATION = "chatsite.asgi.application"
-AUTH_USER_MODEL = 'chat.CustomUser'  
+AUTH_USER_MODEL = 'chat.NewUser'  
 
 
 CHANNEL_LAYERS = {
@@ -76,7 +76,7 @@ CHANNEL_LAYERS = {
 }
 
 
-LOGIN_REDIRECT_URL = 'index'  # or wherever you want users to go after login
+LOGIN_REDIRECT_URL = 'chat_home'  # or wherever you want users to go after login
 LOGIN_URL = 'login'
 
 # Database
@@ -131,7 +131,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
+    os.path.join(BASE_DIR, '/chat/static'),
 ]
 
 # Default primary key field type

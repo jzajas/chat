@@ -148,9 +148,9 @@ cython_debug/
 
 
 data
-
 venv
-
 .idea
-
 */migrations/*
+__pycache__/
+*/__pycache__/
+
