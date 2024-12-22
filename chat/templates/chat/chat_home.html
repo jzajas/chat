@@ -15,11 +15,11 @@
                     </div>
                     <div class="card-body">
                         <div class="list-group">
-                            <a href="{% url 'chat:chat_room' room_name='general' %}" class="list-group-item list-group-item-action">
+                            <a href="{% url 'chat:room' room_name='general' %}" class="list-group-item list-group-item-action">
                                 <h5 class="mb-1">General Chat</h5>
                                 <small class="text-muted">Public room for general discussions</small>
                             </a>
-                            <a href="{% url 'chat:chat_room' room_name='tech' %}" class="list-group-item list-group-item-action">
+                            <a href="{% url 'chat:room' room_name='tech' %}" class="list-group-item list-group-item-action">
                                 <h5 class="mb-1">Tech Talk</h5>
                                 <small class="text-muted">Discuss technology and programming</small>
                             </a>
@@ -33,9 +33,11 @@
                         <h4>Create New Room</h4>
                     </div>
                     <div class="card-body">
-                        <form id="roomForm" class="d-flex">
-                            <input type="text" id="roomName" class="form-control me-2" placeholder="Enter room name">
-                            <button type="submit" class="btn btn-primary">Create & Join</button>
+                        <form onsubmit="return joinRoom(event)">
+                            <div class="input-group">
+                                <input type="text" id="roomInput" class="form-control" placeholder="Enter room name">
+                                <button type="submit" class="btn btn-primary">Create & Join</button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -71,13 +73,14 @@
 
 {% block extra_js %}
 <script>
-document.getElementById('roomForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    const roomName = document.getElementById('roomName').value.trim().toLowerCase();
+function joinRoom(event) {
+    event.preventDefault();
+    const roomName = document.getElementById('roomInput').value.trim().toLowerCase();
     if (roomName) {
-        window.location.href = `/room/${roomName}/`;
+        window.location.href = "{% url 'chat:room' room_name='placeholder' %}".replace('placeholder', roomName);
     }
-});
+    return false;
+}
 </script>
 {% endblock %}
 {% endblock %}

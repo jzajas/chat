@@ -2,12 +2,24 @@ import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from django.utils import timezone
+from channels.db import database_sync_to_async
 
 class ChatConsumer(AsyncWebsocketConsumer):
+
+    connected_users = {}  # Store room-wise connected users
+
     async def connect(self):
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
         self.room_group_name = f"chat_{self.room_name}"
         self.user = self.scope['user']
+
+        # Initialize room in connected_users if it doesn't exist
+        if self.room_group_name not in self.connected_users:
+            self.connected_users[self.room_group_name] = set()
+
+        # Add user to room
+        if self.user.is_authenticated:
+            self.connected_users[self.room_group_name].add(self.user.username)
 
         # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
@@ -27,7 +39,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
 
     async def disconnect(self, close_code):
+        # Remove user from room
         if self.user.is_authenticated:
+            self.connected_users[self.room_group_name].discard(self.user.username)
+
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -38,8 +53,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 }
             )
 
+        await self.update_user_list()
+
+
         # Leave room group
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+
+    async def update_user_list(self):
+        """Send updated user list to all clients in the room"""
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                'type': 'user_list_update',
+                'users': list(self.connected_users[self.room_group_name]),
+                'count': len(self.connected_users[self.room_group_name])
+            }
+        )
+
+
+    async def user_list_update(self, event):
+        """Handler for user list updates"""
+        await self.send(text_data=json.dumps({
+            'type': 'user_list',
+            'users': event['users'],
+            'count': event['count']
+        }))
 
 
     # Receive message from WebSocket
@@ -50,8 +89,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if not self.user.is_authenticated:
                     return
         
-        # username = text_data_json["username"]
-
         # Send message to room group
         await self.channel_layer.group_send(
             self.room_group_name,
@@ -65,26 +102,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     # Receive message from room group
     async def chat_message(self, event):
-        message = event["message"]
-        username = event['username']
-        timestamp = event['timestamp']
-
-        # Send message to WebSocket
         await self.send(text_data=json.dumps({
-            'message': message,
-            'username': username,
-            'timestamp': timestamp
+            'type': 'chat',
+            'message': event['message'],
+            'username': event['username'],
+            'timestamp': event['timestamp']
         }))
-
-#     @database_sync_to_async
-#     def create_chat(self, msg, username):
-#         return Message.objects.create(username=username, msg=msg)
-    
-
-
-
-
-# class Message(models.Model):
-#     author = models.ForeignKey(User, related_name='messages', on_delete=models.CASCADE)
-#     context = models.TextField()
-#     timestamp = models.DateTimeField(auto_now_add=True)

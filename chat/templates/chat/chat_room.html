@@ -47,7 +47,7 @@
                     <h5>Active Users</h5>
                 </div>
                 <div class="card-body">
-                    <ul id="room-users" class="list-group">
+                    <ul id="room-users" class="list-group list-group-flush">
                         <!-- Active users will be populated via JavaScript -->
                     </ul>
                 </div>
@@ -58,32 +58,38 @@
 
 {% block extra_js %}
 <script>
-    // Get room name and user name from Django context
-    
     const roomName = "{{ room_name }}";
     const userName = "{{ user.username }}";
 
-
-    // WebSocket connection will be initialized here
     const chatSocket = new WebSocket(
         'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
     );
 
     chatSocket.onmessage = function(e) {
         const data = JSON.parse(e.data);
-        const messagesContainer = document.getElementById('chat-messages');
         
-        // Create message element
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'mb-2';
-        messageDiv.innerHTML = `
-            <strong>${data.username}:</strong>
-            <span>${data.message}</span>
-            <small class="text-muted ms-2">${new Date().toLocaleTimeString()}</small>
-        `;
-        
-        messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        if (data.type === 'user_list') {
+            // Update user list
+            const userCount = document.getElementById('user-count');
+            const userList = document.getElementById('room-users');
+            
+            userCount.textContent = data.count;
+            userList.innerHTML = data.users
+                .map(user => `<li class="list-group-item">${user}</li>`)
+                .join('');
+        } else if (data.type === 'chat') {
+            // Handle chat message
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'mb-2';
+            messageDiv.innerHTML = `
+                <strong>${data.username}:</strong>
+                <span>${data.message}</span>
+                <small class="text-muted ms-2">${new Date(data.timestamp).toLocaleTimeString()}</small>
+            `;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     };
 
     document.getElementById('chat-form').addEventListener('submit', function(e) {
@@ -93,14 +99,12 @@
         
         if (message) {
             chatSocket.send(JSON.stringify({
-                'message': message,
-                'username': userName
+                'message': message
             }));
             messageInput.value = '';
         }
     });
 
-    // Handle WebSocket closure
     chatSocket.onclose = function(e) {
         console.error('Chat socket closed unexpectedly');
     };
