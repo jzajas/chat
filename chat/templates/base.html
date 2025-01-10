@@ -9,7 +9,9 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="/">Chat App</a>
+            <a href="/" class="navbar-brand">Chat App</a>
+            <a href="{% url 'chat:logout' %}" class="navbar-brand" style="align-content: end" >{{request.user.username}}</a>
+            <a href="{% url 'chat:logout' %}" class="navbar-brand" style="align-content: end">Logout</a>
         </div>
     </nav>
 

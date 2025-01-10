@@ -15,8 +15,9 @@
                 </div>
                 <div class="card-body">
                     <!-- Messages Container -->
-                    <div id="chat-messages" class="mb-3" style="height: 60vh; overflow-y: auto;">
-                        <!-- Messages will be populated via JavaScript -->
+                    <!-- <div id="chat-messages" class="mb-3" style="height: 60vh; overflow-y: auto;"> -->
+                    <div id="chat-messages" class="overflow-auto" style="height: 400px;"></div>
+
                     </div>
 
                     <!-- Message Input -->
@@ -38,7 +39,6 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Room:</strong> {{ room_name|title }}</p>
-                    <p><strong>Users Online:</strong> <span id="user-count">0</span></p>
                 </div>
             </div>
 
@@ -47,8 +47,8 @@
                     <h5>Active Users</h5>
                 </div>
                 <div class="card-body">
-                    <ul id="room-users" class="list-group list-group-flush">
-                        <!-- Active users will be populated via JavaScript -->
+                    <!-- <ul id="room-users" class="list-group list-group-flush"> -->
+                    <div id="user-list" class="border-start ps-3"></div>
                     </ul>
                 </div>
             </div>
@@ -60,37 +60,118 @@
 <script>
     const roomName = "{{ room_name }}";
     const userName = "{{ user.username }}";
-
+    
     const chatSocket = new WebSocket(
         'ws://' + window.location.host + '/ws/chat/' + roomName + '/'
     );
-
+    
     chatSocket.onmessage = function(e) {
+        // var userCount = document.getElementById('user-count').innerHTML;
+        // var userList = document.getElementById('room-users');
         const data = JSON.parse(e.data);
+        console.log(data)
+        var currentUser = data["username"]
+
+        const messagesContainer = document.getElementById('chat-messages');
         
-        if (data.type === 'user_list') {
-            // Update user list
-            const userCount = document.getElementById('user-count');
-            const userList = document.getElementById('room-users');
-            
-            userCount.textContent = data.count;
-            userList.innerHTML = data.users
-                .map(user => `<li class="list-group-item">${user}</li>`)
-                .join('');
-        } else if (data.type === 'chat') {
-            // Handle chat message
-            const messagesContainer = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = 'mb-2';
-            messageDiv.innerHTML = `
-                <strong>${data.username}:</strong>
-                <span>${data.message}</span>
-                <small class="text-muted ms-2">${new Date(data.timestamp).toLocaleTimeString()}</small>
-            `;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+    function createMessageElement(messageData) {
+        const messageDiv = document.createElement('div');
+        const isSystemMessage = messageData.sender === 'System';
+        const isOwnMessage = messageData.sender === currentUser;
+
+        var displayName;
+        var displayContent;
+        
+        if (messageData["sender"] != null) {
+            displayName = messageData["sender"];
+            displayContent = messageData["content"];
+        }else if (messageData["username"] != null) {
+            displayName = messageData["username"];
+            displayContent = messageData["message"];
         }
-    };
+        
+        // Set classes based on message type
+        // messageDiv.className = `mb-3 p-2 rounded ${
+        //     isSystemMessage ? 'text-center text-muted fst-italic' :
+        //     isOwnMessage ? 'ms-auto bg-primary text-white' : 'bg-light'
+        // }`;
+        
+        if (isSystemMessage) {
+            messageDiv.innerHTML = `
+                <div class="small">${displayContent}</div>
+                <div class="text-muted xx-small">${new Date(messageData.timestamp).toLocaleTimeString()}</div>
+            `;
+        } else {
+            messageDiv.innerHTML = `
+                <div class="d-flex justify-content-between align-items-baseline">
+                    <strong class="me-2">${displayName}</strong>
+                    <small class="text-muted">${new Date(messageData.timestamp).toLocaleTimeString()}</small>
+                </div>
+                <div class="message-content">${displayContent}</div>
+                <div class="message-id" style="display: none;">${messageData.message_id}</div>
+            `;
+        }
+        
+        return messageDiv;
+    }
+
+    function appendMessage(messageData) {
+        const messageElement = createMessageElement(messageData);
+        messagesContainer.appendChild(messageElement);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    switch (data.type) {
+        case 'chat_history':
+            messagesContainer.innerHTML = '';
+            data.messages.forEach(message => appendMessage(message));
+            break;
+            
+        case 'chat':
+            appendMessage(data);
+            break;
+            
+        case 'user_list':
+            const userListContainer = document.getElementById('user-list');
+            if (userListContainer) {
+                userListContainer.innerHTML = `
+                    <div class="mb-2">Online Users (${data.count})</div>
+                    ${data.users.map(user => `
+                        <div class="user-item">
+                            <span class="text-success">●</span> ${user}
+                        </div>
+                    `).join('')}
+                `;
+            }
+            break;
+    }
+};
+
+// Add error handling
+chatSocket.onerror = function(error) {
+    console.error('WebSocket Error:', error);
+    const messagesContainer = document.getElementById('chat-messages');
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'alert alert-danger';
+    errorDiv.textContent = 'Connection error. Please refresh the page.';
+    messagesContainer.appendChild(errorDiv);
+};
+
+// Add reconnection logic
+chatSocket.onclose = function(e) {
+    console.log('Chat socket closed unexpectedly');
+    const messagesContainer = document.getElementById('chat-messages');
+    const reconnectDiv = document.createElement('div');
+    reconnectDiv.className = 'alert alert-warning';
+    reconnectDiv.textContent = 'Connection lost. Reconnecting...';
+    messagesContainer.appendChild(reconnectDiv);
+    
+    // Attempt to reconnect after 5 seconds
+    setTimeout(() => {
+        window.location.reload();
+    }, 5000);
+};
 
     document.getElementById('chat-form').addEventListener('submit', function(e) {
         e.preventDefault();

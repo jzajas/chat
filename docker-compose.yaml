@@ -1,14 +1,28 @@
 services:
   app-migrate: &anchor
     build: .
-
-    entrypoint: ["python", "./manage.py", "migrate"]
+    volumes:
+      - .:/app
+    entrypoint: >
+      sh -c "
+      echo 'Starting migrations...' &&
+      python manage.py showmigrations &&
+      python manage.py makemigrations chat &&
+      python manage.py makemigrations &&
+      python manage.py migrate
+      "
+    # entrypoint: ["python", "./manage.py", "migrate"]
+    # entrypoint: ["python", "./manage.py", "makemigrations", "&&", "python", "./manage.py", "migrate"]
 
     environment:
-      DB_PASSWORD: &db_password ${DB_PASSWORD:?DB_PASSWORD not provided}
-      DB_USERNAME: &db_username ${DB_USERNAME:?DB_USERNAME not provided}
-      DB_NAME: &db_name ${DB_NAME:?DB_NAME not provided}
-      DB_HOST: ${DB_HOST:?DB_HOST not provided}
+      # DB_PASSWORD: &db_password ${DB_PASSWORD:?DB_PASSWORD not provided}
+      DB_PASSWORD: "password"
+      # DB_USERNAME: &db_username ${DB_USERNAME:?DB_USERNAME not provided}
+      DB_USERNAME: "user"
+      # DB_NAME: &db_name ${DB_NAME:?DB_NAME not provided}
+      DB_NAME: "pwir"
+      # DB_HOST: ${DB_HOST:?DB_HOST not provided}
+      DB_HOST: "db"
       DEBUG: ${DJANGO_DEBUG:-0}
     
     networks:
@@ -24,6 +38,8 @@ services:
     container_name: chat-redis
     networks:
       - chat-network
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -33,23 +49,41 @@ services:
       retries: 5
 
 
+  # app-createsuperuser:
+  #   <<: *anchor
+  #   environment:
+  #     DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD?:DJANGO_SUPERUSER_PASSWORD not provided}
+      
+
+  #   entrypoint:
+  #     [
+  #       "python",
+  #       "./manage.py",
+  #       "createsuperuser",
+  #       "--noinput",
+  #       "--username",
+  #       "${DJANGO_SUPERUSER_NAME?:DJANGO_SUPERUSER_NAME not provided}",
+  #     ]
+
+  #   depends_on:
+  #     app-migrate:
+  #       condition: service_completed_successfully
   app-createsuperuser:
     <<: *anchor
     environment:
-      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD?:DJANGO_SUPERUSER_PASSWORD not provided}
-
-    entrypoint:
-      [
-        "python",
-        "./manage.py",
-        "createsuperuser",
-        "--noinput",
-        "--username",
-        "${DJANGO_SUPERUSER_NAME?:DJANGO_SUPERUSER_NAME not provided}",
-        "--email",
-        "${DJANGO_SUPERUSER_EMAIL?:DJANGO_SUPERUSER_EMAIL not provided}",
-      ]
-
+      DB_PASSWORD: "password"
+      DB_USERNAME: "user"
+      DB_NAME: "pwir"
+      DB_HOST: "db"
+      DEBUG: ${DJANGO_DEBUG:-0}
+      DJANGO_SUPERUSER_USERNAME: "admin"
+      DJANGO_SUPERUSER_PASSWORD: "admin"
+      DJANGO_SUPERUSER_EMAIL: "admin@example.com"  
+    entrypoint: >
+      sh -c "
+      echo 'Creating superuser...' &&
+      python manage.py createsuperuser --noinput
+      "
     depends_on:
       app-migrate:
         condition: service_completed_successfully
@@ -62,20 +96,24 @@ services:
       - chat-network
 
     healthcheck:
-      test: ["CMD", "curl", "-I", "localhost:8000"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
       interval: 5s
       timeout: 5s
       retries: 50
       start_period: 2s
 
-    entrypoint: ["python", "./manage.py", "runserver", "0.0.0.0:8000"]
+    entrypoint: >
+      sh -c "daphne -b 0.0.0.0 -p 8000 chatsite.asgi:application"
 
     deploy:
       mode: replicated
       replicas: 1
 
     labels:
-      - "traefik.http.routers.appservice.rule=Host(pwir.localhost)"
+      - "traefik.enable=true"
+      - "traefik.http.routers.appservice.rule=Host(`pwir.localhost`)"
+      - "traefik.http.services.appservice.loadbalancer.server.port=8000"
+      - "traefik.http.routers.appservice.entrypoints=web"
 
     environment:
       REDIS_URL: redis://redis:6379/0
@@ -97,7 +135,11 @@ services:
     networks:
       - chat-network
 
-    command: --api.insecure=true --providers.docker
+    command: 
+      - "--api.insecure=true" 
+      - "--providers.docker"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
 
     ports:
       - "80:80"
@@ -114,15 +156,17 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     environment:
-      POSTGRES_PASSWORD: *db_password
-      POSTGRES_USER: *db_username
-      POSTGRES_DB: *db_name
+      POSTGRES_PASSWORD: "password"
+      # POSTGRES_USER: *db_username
+      # POSTGRES_DB: *db_name
+      POSTGRES_USER: "user"
+      POSTGRES_DB: "pwir"
     
     networks:
       - chat-network
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready", "-d", *db_name]
+      test: ["CMD-SHELL", "pg_isready -U user -d pwir"]
       interval: 30s
       timeout: 60s
       retries: 5

@@ -6,6 +6,8 @@ DB_PASSWORD = os.environ.get("DB_PASSWORD")
 DB_NAME = os.environ.get("DB_NAME")
 DB_HOST = os.environ.get("DB_HOST")
 DEBUG = os.environ.get("DEBUG")
+PROMETHEUS_EXPORT_MIGRATIONS = False
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -16,12 +18,13 @@ SECRET_KEY = 'django-insecure-#89$k19o6vs!^w4vq^nf3n7^2i54)$(8+r94l72rg%vq()84a-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = DEBUG
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "0.0.0.0", "pwir.localhost"]
 
 # Application definition
 INSTALLED_APPS = [
-    'chat',
+    # 'chat',
     'daphne',
+    'chat.apps.ChatConfig',  
     "channels_postgres",
     "channels_redis",
     "channels",
@@ -30,7 +33,8 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles'
+    'django.contrib.staticfiles',
+
 ]
 
 MIDDLEWARE = [
@@ -70,7 +74,8 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("127.0.0.1", 6379)],
+            # "hosts": [("127.0.0.1", 6379)],
+            "hosts": [("redis", 6379)],
         },
     },
 }
@@ -86,9 +91,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': DB_NAME,
-        'USER': DB_USERNAME,
-        'PASSWORD': DB_PASSWORD,
-        'HOST': DB_HOST,
+        'USER': "user",
+        'PASSWORD': "password",
+        'HOST': "db",
+        # 'HOST': "localhost",
         'PORT': '5432',
     }
 }

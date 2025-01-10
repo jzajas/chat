@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.decorators import login_required
 from django import forms
-from .models import NewUser
+from chat.models.user import NewUser
 
 class CustomUserCreationForm(forms.ModelForm):
     password1 = forms.CharField(label='Password', widget=forms.PasswordInput)
@@ -17,7 +17,7 @@ class CustomUserCreationForm(forms.ModelForm):
     def clean_password2(self):
         password1 = self.cleaned_data.get("password1")
         password2 = self.cleaned_data.get("password2")
-        if password1 and password2 and password1 != password2:
+        if password1 != password2:
             raise forms.ValidationError("Passwords don't match")
         return password2
 
@@ -69,8 +69,10 @@ def logout_view(request):
     messages.info(request, 'You have been logged out successfully.')
     return redirect('chat:login')  # Updated with namespace
 
+
 def index(request):
-    return render(request, 'chat/index.html')
+    return render(request, 'chat/chat_home.html')
+
 
 @login_required
 def chat_home(request):
@@ -89,3 +91,12 @@ def room(request, room_name):
     return render(request, 'chat/chat_room.html', {
         'room_name': room_name
     })
+
+
+@login_required
+def display_username(request):
+    # Pass the logged-in user's username to the template
+    context = {
+        'username': request.user.username,
+    }
+    return render(request, 'chat/base.html', context)
