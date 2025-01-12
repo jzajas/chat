@@ -81,7 +81,7 @@ CHANNEL_LAYERS = {
 }
 
 
-LOGIN_REDIRECT_URL = 'chat_home'  # or wherever you want users to go after login
+LOGIN_REDIRECT_URL = 'chat_home'
 LOGIN_URL = 'login'
 
 # Database

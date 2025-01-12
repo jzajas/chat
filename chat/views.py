@@ -35,7 +35,7 @@ def register_view(request):
             user = form.save()
             login(request, user)
             messages.success(request, 'Account created successfully!')
-            return redirect('chat:chat_home')  # Updated with namespace
+            return redirect('chat:chat_home')
         else:
             messages.error(request, 'Error in registration. Please correct the errors below.')
     else:
@@ -53,7 +53,7 @@ def login_view(request):
             if user is not None:
                 login(request, user)
                 messages.success(request, f'Welcome back, {username}!')
-                return redirect('chat:chat_home')  # Updated with namespace
+                return redirect('chat:chat_home')
             else:
                 messages.error(request, 'Invalid username or password.')
         else:

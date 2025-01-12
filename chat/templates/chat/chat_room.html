@@ -90,13 +90,7 @@
             displayName = messageData["username"];
             displayContent = messageData["message"];
         }
-        
-        // Set classes based on message type
-        // messageDiv.className = `mb-3 p-2 rounded ${
-        //     isSystemMessage ? 'text-center text-muted fst-italic' :
-        //     isOwnMessage ? 'ms-auto bg-primary text-white' : 'bg-light'
-        // }`;
-        
+                
         if (isSystemMessage) {
             messageDiv.innerHTML = `
                 <div class="small">${displayContent}</div>
@@ -148,7 +142,6 @@
     }
 };
 
-// Add error handling
 chatSocket.onerror = function(error) {
     console.error('WebSocket Error:', error);
     const messagesContainer = document.getElementById('chat-messages');
@@ -158,7 +151,6 @@ chatSocket.onerror = function(error) {
     messagesContainer.appendChild(errorDiv);
 };
 
-// Add reconnection logic
 chatSocket.onclose = function(e) {
     console.log('Chat socket closed unexpectedly');
     const messagesContainer = document.getElementById('chat-messages');
@@ -167,7 +159,6 @@ chatSocket.onclose = function(e) {
     reconnectDiv.textContent = 'Connection lost. Reconnecting...';
     messagesContainer.appendChild(reconnectDiv);
     
-    // Attempt to reconnect after 5 seconds
     setTimeout(() => {
         window.location.reload();
     }, 5000);

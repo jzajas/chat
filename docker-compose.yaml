@@ -31,43 +31,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
-  
-
-  redis:
-    image: redis:alpine
-    container_name: chat-redis
-    networks:
-      - chat-network
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
 
 
-  # app-createsuperuser:
-  #   <<: *anchor
-  #   environment:
-  #     DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD?:DJANGO_SUPERUSER_PASSWORD not provided}
-      
-
-  #   entrypoint:
-  #     [
-  #       "python",
-  #       "./manage.py",
-  #       "createsuperuser",
-  #       "--noinput",
-  #       "--username",
-  #       "${DJANGO_SUPERUSER_NAME?:DJANGO_SUPERUSER_NAME not provided}",
-  #     ]
-
-  #   depends_on:
-  #     app-migrate:
-  #       condition: service_completed_successfully
   app-createsuperuser:
     <<: *anchor
     environment:
@@ -79,11 +44,10 @@ services:
       DJANGO_SUPERUSER_USERNAME: "admin"
       DJANGO_SUPERUSER_PASSWORD: "admin"
       DJANGO_SUPERUSER_EMAIL: "admin@example.com"  
+
     entrypoint: >
-      sh -c "
-      echo 'Creating superuser...' &&
-      python manage.py createsuperuser --noinput
-      "
+      sh -c "python manage.py createsuperuser --noinput"
+
     depends_on:
       app-migrate:
         condition: service_completed_successfully
@@ -97,6 +61,7 @@ services:
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      # test: ["CMD", "curl", "-f", "pwir.localhost"]
       interval: 5s
       timeout: 5s
       retries: 50
@@ -118,11 +83,6 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
 
-    # volumes:
-    #   - .:/app
-    #   - static_volume:/app/staticfiles
-    #   - media_volume:/app/mediafiles
-
     depends_on:
       redis:
         condition: service_healthy
@@ -134,19 +94,33 @@ services:
     image: traefik:v3.1
     networks:
       - chat-network
-
     command: 
       - "--api.insecure=true" 
-      - "--providers.docker"
+      - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-
     ports:
       - "80:80"
       - "443:443"
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+
+  redis:
+    image: redis:alpine
+    container_name: chat-redis
+    networks:
+      - chat-network
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
 
   db:
@@ -173,11 +147,33 @@ services:
       start_period: 80s
 
 
+  worker-service:
+    build: .
+
+    volumes:
+      - worker_data:/data
+
+    command: python manage.py runworker background-tasks
+    # volumes:
+    #   - .:/app
+    # env_file:
+    #   - .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      app-service:
+        condition: service_healthy
+        
+    networks:
+      - chat-network
+
+
 volumes:
   postgres_data:
   redis_data:
-  static_volume:
-  media_volume:
+  worker_data:
+  # static_volume:
+  # media_volume:
 
 
 networks:
