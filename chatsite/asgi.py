@@ -11,7 +11,7 @@ from chat.routing import websocket_urlpatterns
 import chat.consumers as consumers
 
 django_asgi_app = get_asgi_application()
-# print("DJANGO_SETTINGS_MODULE:", os.getenv("DJANGO_SETTINGS_MODULE"))
+
 
 application = ProtocolTypeRouter(
     {
@@ -22,9 +22,3 @@ application = ProtocolTypeRouter(
         }), 
     }
 )
-
-# callowanie workera
-# async_to_sync(channel_layer.send)('background-tasks', {'type': 'task_b', 'id': self.user.id})
-
-# launching worker
-# python manage.py runworker background-tasks

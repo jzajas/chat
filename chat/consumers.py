@@ -33,7 +33,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.save_and_send_message(
                 "System",
                 f"{self.user.username} joined the chat",
-                is_system_message=True
+                
             )
             await self.update_user_list()
 
@@ -44,15 +44,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.save_and_send_message(
                 "System",
                 f"{self.user.username} left the chat",
-                is_system_message=True
+                
             )
             await self.update_user_list()
 
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
 
-    async def save_and_send_message(self, username, message_content, is_system_message=False):
-        message_data = await self.save_message(username, message_content, is_system_message)
+    async def save_and_send_message(self, username, message_content):
+        message_data = await self.save_message(message_content)
         
         # await self.channel_layer.group_send(
         #     self.room_group_name,
@@ -77,12 +77,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     @database_sync_to_async
-    def save_message(self, username, message_content, is_system_message=False):
-        sender = self.user
+    def save_message(self, message_content):
         message = Message.objects.create(
-            room=self.room,
-            sender=sender,
-            content=message_content
+            room = self.room,
+            sender = self.user,
+            content = message_content
         )
         return message.to_json()
 
@@ -166,6 +165,8 @@ class BackgroundTaskConsumer(SyncConsumer):
         room_group_name = message['room_group']
         content = message['message']
         username = message['username']
+        timestamp = message.get("timestamp")
+        id = message.get("id")
 
         filtered_content = self.filter_message(content)
 
@@ -174,12 +175,9 @@ class BackgroundTaskConsumer(SyncConsumer):
             {
                 'type': 'chat_message',
                 'message': filtered_content,
-                'username': username
+                'username': username,
+                'timestamp': timestamp,
+                'message_id': id,
+                'room_group': room_group_name
             }
         )
-    
-        
-
-
-# def fix_channel_name(channel_name):
-#         return re.sub(r'[^a-zA-Z0-9._-]', '_', channel_name)

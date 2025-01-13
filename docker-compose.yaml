@@ -11,18 +11,12 @@ services:
       python manage.py makemigrations &&
       python manage.py migrate
       "
-    # entrypoint: ["python", "./manage.py", "migrate"]
-    # entrypoint: ["python", "./manage.py", "makemigrations", "&&", "python", "./manage.py", "migrate"]
 
     environment:
-      # DB_PASSWORD: &db_password ${DB_PASSWORD:?DB_PASSWORD not provided}
-      DB_PASSWORD: "password"
-      # DB_USERNAME: &db_username ${DB_USERNAME:?DB_USERNAME not provided}
-      DB_USERNAME: "user"
-      # DB_NAME: &db_name ${DB_NAME:?DB_NAME not provided}
-      DB_NAME: "pwir"
-      # DB_HOST: ${DB_HOST:?DB_HOST not provided}
-      DB_HOST: "db"
+      DB_PASSWORD: &db_password ${DB_PASSWORD:?DB_PASSWORD not provided}
+      DB_USERNAME: &db_username ${DB_USERNAME:?DB_USERNAME not provided}
+      DB_NAME: &db_name ${DB_NAME:?DB_NAME not provided}
+      DB_HOST: &db_host ${DB_HOST:?DB_HOST not provided}
       DEBUG: ${DJANGO_DEBUG:-0}
     
     networks:
@@ -36,14 +30,9 @@ services:
   app-createsuperuser:
     <<: *anchor
     environment:
-      DB_PASSWORD: "password"
-      DB_USERNAME: "user"
-      DB_NAME: "pwir"
-      DB_HOST: "db"
-      DEBUG: ${DJANGO_DEBUG:-0}
-      DJANGO_SUPERUSER_USERNAME: "admin"
-      DJANGO_SUPERUSER_PASSWORD: "admin"
-      DJANGO_SUPERUSER_EMAIL: "admin@example.com"  
+      DJANGO_SUPERUSER_USERNAME: ${DJANGO_SUPERUSER_NAME:?DJANGO_SUPERUSER_NAME not provided}
+      DJANGO_SUPERUSER_PASSWORD: ${DJANGO_SUPERUSER_PASSWORD:?DJANGO_SUPERUSER_PASSWORD not provided}
+      DJANGO_SUPERUSER_EMAIL: ${DJANGO_SUPERUSER_EMAIL:?DJANGO_SUPERUSER_EMAIL not provided}
 
     entrypoint: >
       sh -c "python manage.py createsuperuser --noinput"
@@ -61,7 +50,6 @@ services:
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000"]
-      # test: ["CMD", "curl", "-f", "pwir.localhost"]
       interval: 5s
       timeout: 5s
       retries: 50
@@ -80,10 +68,9 @@ services:
       - "traefik.http.services.appservice.loadbalancer.server.port=8000"
       - "traefik.http.routers.appservice.entrypoints=web"
 
-    environment:
-      REDIS_URL: redis://redis:6379/0
-
     depends_on:
+      db:
+        condition: service_healthy
       redis:
         condition: service_healthy
       app-migrate:
@@ -109,7 +96,6 @@ services:
 
   redis:
     image: redis:alpine
-    container_name: chat-redis
     networks:
       - chat-network
     ports:
@@ -130,17 +116,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
     environment:
-      POSTGRES_PASSWORD: "password"
-      # POSTGRES_USER: *db_username
-      # POSTGRES_DB: *db_name
-      POSTGRES_USER: "user"
-      POSTGRES_DB: "pwir"
+      POSTGRES_USER: *db_username
+      POSTGRES_PASSWORD: *db_password
+      POSTGRES_DB: *db_name
     
     networks:
       - chat-network
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d pwir"]
+      test: ["CMD-SHELL", "pg_isready -U $db_username -d $db_name"]
+
       interval: 30s
       timeout: 60s
       retries: 5
@@ -154,10 +139,7 @@ services:
       - worker_data:/data
 
     command: python manage.py runworker background-tasks
-    # volumes:
-    #   - .:/app
-    # env_file:
-    #   - .env
+
     depends_on:
       redis:
         condition: service_healthy
@@ -172,8 +154,6 @@ volumes:
   postgres_data:
   redis_data:
   worker_data:
-  # static_volume:
-  # media_volume:
 
 
 networks:
